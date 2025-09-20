@@ -1,0 +1,50 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  entr-lambda
+Transform:
+- AWS::Serverless-2016-10-31
+
+Globals:
+  Function:
+    Runtime: node22.x
+    #Layers:
+    #TODO: implement layer code for db crud operations
+    #Role:
+    #TODO: Define a global Exeution Role for lambda funcs
+    Architectures:
+      - x86_64
+    MemorySize: 128
+    Timeout: 100
+    LoggingConfig:
+      LogFormat: JSON
+
+  Api:
+    Auth:
+      DefaultAuthorizer: CustomAuthorizer
+      Authorizers:
+        CustomAuthorizer:
+          FunctionArn: ""
+
+Resources:
+  # Each Lambda function is defined by properties:
+  # https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+
+  GetUsers:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: Pull user profile from database
+      FunctionName: getUsers
+      CodeUri: src/common/users/
+      Handler: getUsers.handleGetUsers
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /users
+            Method: GET
+Outputs:
+  WebEndpoint:
+    Description: API Gateway endpoint URL for Prod stage
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/Prod/"
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+
