@@ -4,13 +4,33 @@ Description: >-
 Transform:
 - AWS::Serverless-2016-10-31
 
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - test
+      - prod
+    Description: Environment to apply template too. Also dictates which env variables to use.
+
+Mappings:
+  EnvironmentVariables:
+    dev:
+      #Place dev env variables and arns here
+      DbSecretArn: arn:aws:secretsmanager:us-east-2:050478186931:secret:rds!cluster-e9dc8dfe-3415-4aee-9de5-0f02f02ca0e5-lXwO8B
+      ClusterArn: arn:aws:rds:us-east-2:050478186931:cluster:entr-cluster-1
+    test:
+      #Place test env variable and arns here
+    prod:
+      #Place prod env variables and arns here
+
+
 Globals:
   Function:
     Runtime: node22.x
-    #Layers:
-    #TODO: implement layer code for db crud operations
-    #Role:
-    #TODO: Define a global Exeution Role for lambda funcs
+    Layers:
+      - !Ref EntrModulesLayer # giving our lambdas access to our db layer
     Architectures:
       - x86_64
     MemorySize: 128
@@ -26,7 +46,56 @@ Globals:
           FunctionArn: ""
 
 Resources:
-  # Each Lambda function is defined by properties:
+  # Roles
+  LambdaDataApiRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "lambda-dataapi-role-${AWS::StackName}"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      # standard privileges (cloud watch allow)
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        # Access our db cluster ONLY via data api
+        - PolicyName: DataApiPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - rds-data:ExecuteStatement
+                  - rds-data:BatchExecuteStatement
+                  - rds-data:BeginTransaction
+                  - rds-data:CommitTransaction
+                  - rds-data:RollbackTransaction
+                Resource: !Ref ClusterArn
+        # Allow reading your DB secret
+        - PolicyName: SecretReadPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: ReadSecret
+                Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Ref DbSecretArn
+
+  EntrModulesLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      ContentUri: layers
+      Description: layer functions for interacting with database
+      LayerName: Entr_Modules
+      RetentionPolicy: Delete # Deleting previous layer versions. May change later if we find a reason to keep them.
+    Metadata:
+      BuildMethod: node22.x
+        # Each Lambda function is defined by properties:
   # https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
 
   GetUsers:
@@ -42,6 +111,8 @@ Resources:
           Properties:
             Path: /users
             Method: GET
+      Role:
+        !Ref LambdaDataApiRole.Arn
 Outputs:
   WebEndpoint:
     Description: API Gateway endpoint URL for Prod stage
