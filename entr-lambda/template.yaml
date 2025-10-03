@@ -18,8 +18,9 @@ Mappings:
   EnvironmentVariables:
     dev:
       #Place dev env variables and arns here
-      DbSecretArn: arn:aws:secretsmanager:us-east-2:050478186931:secret:rds!cluster-e9dc8dfe-3415-4aee-9de5-0f02f02ca0e5-lXwO8B
-      ClusterArn: arn:aws:rds:us-east-2:050478186931:cluster:entr-cluster-1
+#TODO: redefine these once db exists again.
+#      DbSecretArn: arn:aws:secretsmanager:us-east-2:050478186931:secret:rds!cluster-e9dc8dfe-3415-4aee-9de5-0f02f02ca0e5-lXwO8B
+#      ClusterArn: arn:aws:rds:us-east-2:050478186931:cluster:entr-cluster-1
     test:
       #Place test env variable and arns here
     prod:
@@ -38,14 +39,66 @@ Globals:
     LoggingConfig:
       LogFormat: JSON
 
-  Api:
-    Auth:
-      DefaultAuthorizer: CustomAuthorizer
-      Authorizers:
-        CustomAuthorizer:
-          FunctionArn: ""
-
 Resources:
+
+  # User pool to store all users and manage authorization
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub '${AWS::StackName}-users'
+      AutoVerifiedAttributes: [ phone_number ] # send text confirmation before user is added to the pool
+      Schema:
+        - Name: email
+        - Required: true
+        - Mutable: true
+        - Name: phone_number
+        - Required: true
+        - Mutable: true
+        - Name: given_name
+        - Required: true
+        - Mutable: true
+        - Name: family_name
+        - Required: true
+        - Mutable: true
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref UserPool
+      ClientName: web
+      GenerateSecret: false
+
+  UserGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: user
+      UserPoolId: !Ref UserPool
+      Description: Default application users
+
+  BarAdminGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: bar-admin
+      UserPoolId: !Ref UserPool
+      Description: Bar administrators
+
+  # API Gateway HTTP API with JWT Authorizer
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      CorsConfiguration:
+        AllowOrigins: [ '*' ]
+        AllowMethods: [ 'GET','POST','PATCH','DELETE','OPTIONS' ]
+        AllowHeaders: [ 'Authorization','Content-Type' ]
+      Auth:
+        Authorizers:
+          CognitoJwt:
+            IdentitySource: "$request.header.Authorization"
+            JwtConfiguration:
+              # Issuer must be the Cognito user pool issuer URL
+              issuer: !Sub "https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPool}"
+              audience:
+                - !Ref UserPoolClient
   # Roles
   LambdaDataApiRole:
     Type: AWS::IAM::Role
@@ -74,7 +127,7 @@ Resources:
                   - rds-data:BeginTransaction
                   - rds-data:CommitTransaction
                   - rds-data:RollbackTransaction
-                Resource: !Ref ClusterArn
+#                Resource: !Ref ClusterArn
         # Allow reading your DB secret
         - PolicyName: SecretReadPolicy
           PolicyDocument:
@@ -84,7 +137,10 @@ Resources:
                 Effect: Allow
                 Action:
                   - secretsmanager:GetSecretValue
-                Resource: !Ref DbSecretArn
+
+
+#TODO: Once db is added back, redeclare this.
+#                Resource: !Ref DbSecretArn
 
   EntrModulesLayer:
     Type: AWS::Serverless::LayerVersion
@@ -98,24 +154,411 @@ Resources:
         # Each Lambda function is defined by properties:
   # https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
 
+  # Function to call as a bar admin to submit an email and make that person a bar admin for that bar.
+  AddBarAdmin:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/barAdmins/
+      Handler: addBarAdminByEmail.addBarAdminByEmailHandler
+      Role: !Ref LambdaRoleArn
+      Events:
+        HttpAddBarAdmin:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /bar-admins/add
+            Method: POST
+            Auth:
+              Authorizer: CognitoJwt
+
+    # ============================== USERS ==============================
   GetUsers:
     Type: AWS::Serverless::Function
     Properties:
-      Description: Pull user profile from database
-      FunctionName: getUsers
-      CodeUri: src/common/users/
-      Handler: getUsers.handleGetUsers
+      CodeUri: src/users/
+      Handler: getUsers.getUsersHandler
+      Role: !Ref LambdaRoleArn
       Events:
-        Api:
-          Type: Api
+        HttpGetUsers:
+          Type: HttpApi
           Properties:
+            ApiId: !Ref HttpApi
             Path: /users
             Method: GET
-      Role:
-        !Ref LambdaDataApiRole.Arn
+            # public: design your filtering via query string
+
+  CreateUser:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/users/
+      Handler: createUsers.createUsersHandler
+      Role: !Ref LambdaRoleArn
+      Events:
+        HttpCreateUser:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /users
+            Method: POST
+            # public signup (make protected if you prefer)
+
+  UpdateUser:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/users/
+      Handler: updateUsers.updateUsersHandler
+      Role: !Ref LambdaRoleArn
+      Events:
+        HttpUpdateUser:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /users
+            Method: PATCH
+            Auth:
+              Authorizer: CognitoJwt
+
+  DeleteUser:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/users/
+      Handler: deleteUsers.deleteUsersHandler
+      Role: !Ref LambdaRoleArn
+      Events:
+        HttpDeleteUser:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /users
+            Method: DELETE
+            Auth:
+              Authorizer: CognitoJwt
+
+  # =========================== BAR ADMINS ============================
+  GetBarAdmins:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/barAdmins/get/
+      Handler: getBarAdminsHandler
+      Role: !Ref LambdaRoleArn
+      Events:
+        HttpGetBarAdmins:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /bar-admins
+            Method: GET
+            Auth:
+              Authorizer: CognitoJwt
+
+  CreateBarAdmin:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/barAdmins/create/
+      Handler: createBarAdminHandler
+      Role: !Ref LambdaRoleArn
+      Events:
+        HttpCreateBarAdmin:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /bar-admins
+            Method: POST
+            Auth:
+              Authorizer: CognitoJwt
+
+  UpdateBarAdmin:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/barAdmins/update/
+      Handler: updateBarAdminHandler
+      Role: !Ref LambdaRoleArn
+      Events:
+        HttpUpdateBarAdmin:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /bar-admins
+            Method: PATCH
+            Auth:
+              Authorizer: CognitoJwt
+
+  DeleteBarAdmin:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/barAdmins/delete/
+      Handler: deleteBarAdminHandler
+      Role: !Ref LambdaRoleArn
+      Events:
+        HttpDeleteBarAdmin:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /bar-admins
+            Method: DELETE
+            Auth:
+              Authorizer: CognitoJwt
+
+  # ============================== BARS ===============================
+  GetBars:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/bars/get/
+      Handler: getBarsHandler
+      Role: !Ref LambdaRoleArn
+      Events:
+        HttpGetBars:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /bars
+            Method: GET
+            # public
+
+  CreateBar:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/bars/create/
+      Handler: createBarHandler
+      Role: !Ref LambdaRoleArn
+      Events:
+        HttpCreateBar:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /bars
+            Method: POST
+            Auth:
+              Authorizer: CognitoJwt
+
+  UpdateBar:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/bars/update/
+      Handler: updateBarHandler
+      Role: !Ref LambdaRoleArn
+      Events:
+        HttpUpdateBar:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /bars
+            Method: PATCH
+            Auth:
+              Authorizer: CognitoJwt
+
+  DeleteBar:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/bars/delete/
+      Handler: deleteBarHandler
+      Role: !Ref LambdaRoleArn
+      Events:
+        HttpDeleteBar:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /bars
+            Method: DELETE
+            Auth:
+              Authorizer: CognitoJwt
+
+  # ============================= LEVELS =============================
+  GetLevels:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/levels/get/
+      Handler: getLevelsHandler
+      Role: !Ref LambdaRoleArn
+      Events:
+        HttpGetLevels:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /levels
+            Method: GET
+            # public
+
+  CreateLevel:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/levels/create/
+      Handler: createLevelHandler
+      Role: !Ref LambdaRoleArn
+      Events:
+        HttpCreateLevel:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /levels
+            Method: POST
+            Auth:
+              Authorizer: CognitoJwt
+
+  UpdateLevel:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/levels/update/
+      Handler: updateLevelHandler
+      Role: !Ref LambdaRoleArn
+      Events:
+        HttpUpdateLevel:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /levels
+            Method: PATCH
+            Auth:
+              Authorizer: CognitoJwt
+
+  DeleteLevel:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/levels/delete/
+      Handler: deleteLevelHandler
+      Role: !Ref LambdaRoleArn
+      Events:
+        HttpDeleteLevel:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /levels
+            Method: DELETE
+            Auth:
+              Authorizer: CognitoJwt
+
+  # ============================ SECTIONS ============================
+  GetSections:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/sections/get/
+      Handler: getSectionsHandler
+      Role: !Ref LambdaRoleArn
+      Events:
+        HttpGetSections:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /sections
+            Method: GET
+            # public
+
+  CreateSection:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/sections/create/
+      Handler: createSectionHandler
+      Role: !Ref LambdaRoleArn
+      Events:
+        HttpCreateSection:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /sections
+            Method: POST
+            Auth:
+              Authorizer: CognitoJwt
+
+  UpdateSection:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/sections/update/
+      Handler: updateSectionHandler
+      Role: !Ref LambdaRoleArn
+      Events:
+        HttpUpdateSection:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /sections
+            Method: PATCH
+            Auth:
+              Authorizer: CognitoJwt
+
+  DeleteSection:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/sections/delete/
+      Handler: deleteSectionHandler
+      Role: !Ref LambdaRoleArn
+      Events:
+        HttpDeleteSection:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /sections
+            Method: DELETE
+            Auth:
+              Authorizer: CognitoJwt
+
+  # =========================== RESERVATIONS =========================
+  GetReservations:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/reservations/get/
+      Handler: getReservationsHandler
+      Role: !Ref LambdaRoleArn
+      Events:
+        HttpGetReservations:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /reservations
+            Method: GET
+            # public or protect if you only want "my reservations"
+
+  CreateReservation:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/reservations/create/
+      Handler: createReservationHandler
+      Role: !Ref LambdaRoleArn
+      Events:
+        HttpCreateReservation:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /reservations
+            Method: POST
+            # public checkout, or protect as needed
+
+  UpdateReservation:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/reservations/update/
+      Handler: updateReservationHandler
+      Role: !Ref LambdaRoleArn
+      Events:
+        HttpUpdateReservation:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /reservations
+            Method: PATCH
+            Auth:
+              Authorizer: CognitoJwt
+
+  DeleteReservation:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/reservations/delete/
+      Handler: deleteReservationHandler
+      Role: !Ref LambdaRoleArn
+      Events:
+        HttpDeleteReservation:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /reservations
+            Method: DELETE
+            Auth:
+              Authorizer: CognitoJwt
 Outputs:
-  WebEndpoint:
-    Description: API Gateway endpoint URL for Prod stage
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/Prod/"
-# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+  ApiEndpoint:
+    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+    Description: Invoke URL for the $default stage
+  CognitoUserPoolId:
+    Value: !Ref UserPool
+  CognitoAppClientId:
+    Value: !Ref UserPoolClient
 
