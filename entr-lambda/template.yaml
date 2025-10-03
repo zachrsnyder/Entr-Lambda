@@ -187,14 +187,14 @@ Resources:
             Method: GET
             # public: design your filtering via query string
 
-  CreateUser:
+  CreateUsers:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: src/users/
       Handler: createUsers.createUsersHandler
       Role: !Ref LambdaRoleArn
       Events:
-        HttpCreateUser:
+        HttpCreateUsers:
           Type: HttpApi
           Properties:
             ApiId: !Ref HttpApi
@@ -202,14 +202,14 @@ Resources:
             Method: POST
             # public signup (make protected if you prefer)
 
-  UpdateUser:
+  UpdateUsers:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: src/users/
       Handler: updateUsers.updateUsersHandler
       Role: !Ref LambdaRoleArn
       Events:
-        HttpUpdateUser:
+        HttpUpdateUsers:
           Type: HttpApi
           Properties:
             ApiId: !Ref HttpApi
@@ -218,14 +218,14 @@ Resources:
             Auth:
               Authorizer: CognitoJwt
 
-  DeleteUser:
+  DeleteUsers:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: src/users/
       Handler: deleteUsers.deleteUsersHandler
       Role: !Ref LambdaRoleArn
       Events:
-        HttpDeleteUser:
+        HttpDeleteUsers:
           Type: HttpApi
           Properties:
             ApiId: !Ref HttpApi
@@ -238,8 +238,8 @@ Resources:
   GetBarAdmins:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: src/barAdmins/get/
-      Handler: getBarAdminsHandler
+      CodeUri: src/barAdmins/
+      Handler: getBarAdmins.getBarAdminsHandler
       Role: !Ref LambdaRoleArn
       Events:
         HttpGetBarAdmins:
@@ -251,14 +251,14 @@ Resources:
             Auth:
               Authorizer: CognitoJwt
 
-  CreateBarAdmin:
+  CreateBarAdmins:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: src/barAdmins/create/
-      Handler: createBarAdminHandler
+      CodeUri: src/barAdmins/
+      Handler: createBarAdmins.createBarAdminsHandler
       Role: !Ref LambdaRoleArn
       Events:
-        HttpCreateBarAdmin:
+        HttpCreateBarAdmins:
           Type: HttpApi
           Properties:
             ApiId: !Ref HttpApi
@@ -267,14 +267,14 @@ Resources:
             Auth:
               Authorizer: CognitoJwt
 
-  UpdateBarAdmin:
+  UpdateBarAdmins:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: src/barAdmins/update/
-      Handler: updateBarAdminHandler
+      CodeUri: src/barAdmins/
+      Handler: updateBarAdmins.updateBarAdminsHandler
       Role: !Ref LambdaRoleArn
       Events:
-        HttpUpdateBarAdmin:
+        HttpUpdateBarAdmins:
           Type: HttpApi
           Properties:
             ApiId: !Ref HttpApi
@@ -283,14 +283,14 @@ Resources:
             Auth:
               Authorizer: CognitoJwt
 
-  DeleteBarAdmin:
+  DeleteBarAdmins:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: src/barAdmins/delete/
-      Handler: deleteBarAdminHandler
+      CodeUri: src/barAdmins/
+      Handler: deleteBarAdmins.deleteBarAdminsHandler
       Role: !Ref LambdaRoleArn
       Events:
-        HttpDeleteBarAdmin:
+        HttpDeleteBarAdmins:
           Type: HttpApi
           Properties:
             ApiId: !Ref HttpApi
@@ -303,8 +303,8 @@ Resources:
   GetBars:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: src/bars/get/
-      Handler: getBarsHandler
+      CodeUri: src/bars/
+      Handler: getBars.getBarsHandler
       Role: !Ref LambdaRoleArn
       Events:
         HttpGetBars:
@@ -315,14 +315,14 @@ Resources:
             Method: GET
             # public
 
-  CreateBar:
+  CreateBars:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: src/bars/create/
-      Handler: createBarHandler
+      CodeUri: src/bars/
+      Handler: createBars.createBarsHandler
       Role: !Ref LambdaRoleArn
       Events:
-        HttpCreateBar:
+        HttpCreateBars:
           Type: HttpApi
           Properties:
             ApiId: !Ref HttpApi
@@ -331,14 +331,14 @@ Resources:
             Auth:
               Authorizer: CognitoJwt
 
-  UpdateBar:
+  UpdateBars:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: src/bars/update/
-      Handler: updateBarHandler
+      CodeUri: src/bars/
+      Handler: updateBars.updateBarsHandler
       Role: !Ref LambdaRoleArn
       Events:
-        HttpUpdateBar:
+        HttpUpdateBars:
           Type: HttpApi
           Properties:
             ApiId: !Ref HttpApi
@@ -347,14 +347,14 @@ Resources:
             Auth:
               Authorizer: CognitoJwt
 
-  DeleteBar:
+  DeleteBars:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: src/bars/delete/
-      Handler: deleteBarHandler
+      CodeUri: src/bars/
+      Handler: deleteBars.deleteBarsHandler
       Role: !Ref LambdaRoleArn
       Events:
-        HttpDeleteBar:
+        HttpDeleteBars:
           Type: HttpApi
           Properties:
             ApiId: !Ref HttpApi
@@ -367,8 +367,8 @@ Resources:
   GetLevels:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: src/levels/get/
-      Handler: getLevelsHandler
+      CodeUri: src/levels/
+      Handler: getLevels.getLevelsHandler
       Role: !Ref LambdaRoleArn
       Events:
         HttpGetLevels:
@@ -379,14 +379,14 @@ Resources:
             Method: GET
             # public
 
-  CreateLevel:
+  CreateLevels:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: src/levels/create/
-      Handler: createLevelHandler
+      CodeUri: src/levels/
+      Handler: createLevels.createLevelsHandler
       Role: !Ref LambdaRoleArn
       Events:
-        HttpCreateLevel:
+        HttpCreateLevels:
           Type: HttpApi
           Properties:
             ApiId: !Ref HttpApi
@@ -395,14 +395,14 @@ Resources:
             Auth:
               Authorizer: CognitoJwt
 
-  UpdateLevel:
+  UpdateLevels:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: src/levels/update/
-      Handler: updateLevelHandler
+      CodeUri: src/levels/
+      Handler: updateLevels.updateLevelsHandler
       Role: !Ref LambdaRoleArn
       Events:
-        HttpUpdateLevel:
+        HttpUpdateLevels:
           Type: HttpApi
           Properties:
             ApiId: !Ref HttpApi
@@ -411,14 +411,14 @@ Resources:
             Auth:
               Authorizer: CognitoJwt
 
-  DeleteLevel:
+  DeleteLevels:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: src/levels/delete/
-      Handler: deleteLevelHandler
+      CodeUri: src/levels/
+      Handler: deleteLevels.deleteLevelsHandler
       Role: !Ref LambdaRoleArn
       Events:
-        HttpDeleteLevel:
+        HttpDeleteLevels:
           Type: HttpApi
           Properties:
             ApiId: !Ref HttpApi
@@ -431,8 +431,8 @@ Resources:
   GetSections:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: src/sections/get/
-      Handler: getSectionsHandler
+      CodeUri: src/sections/
+      Handler: getSections.getSectionsHandler
       Role: !Ref LambdaRoleArn
       Events:
         HttpGetSections:
@@ -443,14 +443,14 @@ Resources:
             Method: GET
             # public
 
-  CreateSection:
+  CreateSections:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: src/sections/create/
-      Handler: createSectionHandler
+      CodeUri: src/sections/
+      Handler: createSections.createSectionsHandler
       Role: !Ref LambdaRoleArn
       Events:
-        HttpCreateSection:
+        HttpCreateSections:
           Type: HttpApi
           Properties:
             ApiId: !Ref HttpApi
@@ -459,14 +459,14 @@ Resources:
             Auth:
               Authorizer: CognitoJwt
 
-  UpdateSection:
+  UpdateSections:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: src/sections/update/
-      Handler: updateSectionHandler
+      CodeUri: src/sections/
+      Handler: updateSections.updateSectionsHandler
       Role: !Ref LambdaRoleArn
       Events:
-        HttpUpdateSection:
+        HttpUpdateSections:
           Type: HttpApi
           Properties:
             ApiId: !Ref HttpApi
@@ -475,14 +475,14 @@ Resources:
             Auth:
               Authorizer: CognitoJwt
 
-  DeleteSection:
+  DeleteSections:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: src/sections/delete/
-      Handler: deleteSectionHandler
+      CodeUri: src/sections/
+      Handler: deleteSections.deleteSectionsHandler
       Role: !Ref LambdaRoleArn
       Events:
-        HttpDeleteSection:
+        HttpDeleteSections:
           Type: HttpApi
           Properties:
             ApiId: !Ref HttpApi
@@ -495,8 +495,8 @@ Resources:
   GetReservations:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: src/reservations/get/
-      Handler: getReservationsHandler
+      CodeUri: src/reservations/
+      Handler: getReservations.getReservationsHandler
       Role: !Ref LambdaRoleArn
       Events:
         HttpGetReservations:
@@ -507,14 +507,14 @@ Resources:
             Method: GET
             # public or protect if you only want "my reservations"
 
-  CreateReservation:
+  CreateReservations:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: src/reservations/create/
-      Handler: createReservationHandler
+      CodeUri: src/reservations/
+      Handler: createReservations.createReservationsHandler
       Role: !Ref LambdaRoleArn
       Events:
-        HttpCreateReservation:
+        HttpCreateReservations:
           Type: HttpApi
           Properties:
             ApiId: !Ref HttpApi
@@ -522,14 +522,14 @@ Resources:
             Method: POST
             # public checkout, or protect as needed
 
-  UpdateReservation:
+  UpdateReservations:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: src/reservations/update/
-      Handler: updateReservationHandler
+      CodeUri: src/reservations/
+      Handler: updateReservations.updateReservationsHandler
       Role: !Ref LambdaRoleArn
       Events:
-        HttpUpdateReservation:
+        HttpUpdateReservations:
           Type: HttpApi
           Properties:
             ApiId: !Ref HttpApi
@@ -538,14 +538,14 @@ Resources:
             Auth:
               Authorizer: CognitoJwt
 
-  DeleteReservation:
+  DeleteReservations:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: src/reservations/delete/
-      Handler: deleteReservationHandler
+      CodeUri: src/reservations/
+      Handler: deleteReservations.deleteReservationsHandler
       Role: !Ref LambdaRoleArn
       Events:
-        HttpDeleteReservation:
+        HttpDeleteReservations:
           Type: HttpApi
           Properties:
             ApiId: !Ref HttpApi
